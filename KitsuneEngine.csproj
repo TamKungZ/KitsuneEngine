@@ -40,7 +40,7 @@
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.*" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.*" PrivateAssets="all" />
 		<PackageReference Include="ImGui.NET" Version="1.*" />
-		<PackageReference Include="BenchmarkDotNet" Version="0.*" />
+		<PackageReference Include="BenchmarkDotNet" Version="0.*" PrivateAssets="all" />
 		<PackageReference Include="LiteNetLib" Version="1.*" />
 		<PackageReference Include="MessagePack" Version="3.*" />
 		<PackageReference Include="ENet-CSharp" Version="2.*" />
