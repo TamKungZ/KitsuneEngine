@@ -112,7 +112,7 @@ Features:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/Kitsune-2D-Game-Engine.git
+git clone https://github.com/TamKungZ/Kitsune-2D-Game-Engine.git
 cd Kitsune-2D-Game-Engine
 ```
 
