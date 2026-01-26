@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Optimize>true</Optimize>
+		<TieredCompilation>true</TieredCompilation>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<PreserveCompilationContext>true</PreserveCompilationContext>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<EnableDynamicLoading>true</EnableDynamicLoading>
+		<Company>TamKungZ_</Company>
+		<Authors>TamKungZ_</Authors>
+		<Product>KitsuneEngine</Product>
+		<Description>Modern, fast, moddable 2D game engine built with .NET.</Description>
+		<AssemblyName>KitsuneEngine</AssemblyName>
+		<RootNamespace>KitsuneEngine</RootNamespace>
+		<Version>1.0.0</Version>
+		<AssemblyVersion>1.0.0.0</AssemblyVersion>
+		<FileVersion>1.0.0.0</FileVersion>
+		<InformationalVersion>1.0.0</InformationalVersion>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Silk.NET.OpenGL" Version="2.*" />
+		<PackageReference Include="Silk.NET.Vulkan" Version="2.*" />
+		<PackageReference Include="Silk.NET.Input" Version="2.*" />
+		<PackageReference Include="Silk.NET.OpenAL" Version="2.*" />
+		<PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.*" />
+		<PackageReference Include="CommunityToolkit.HighPerformance" Version="8.*" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.*" />
+		<PackageReference Include="DefaultEcs" Version="0.17.*" />
+		<PackageReference Include="StbImageSharp" Version="2.*" />
+		<PackageReference Include="Serilog" Version="4.*" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="6.*" />
+		<PackageReference Include="System.Text.Json" Version="9.0.*" />
+		<PackageReference Include="System.Numerics.Vectors" Version="4.*" />
+		<PackageReference Include="Microsoft.Extensions.DependencyModel" Version="9.*" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.*" />
+		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.*" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.*" PrivateAssets="all" />
+		<PackageReference Include="ImGui.NET" Version="1.*" />
+		<PackageReference Include="BenchmarkDotNet" Version="0.*" />
+		<PackageReference Include="LiteNetLib" Version="1.*" />
+		<PackageReference Include="MessagePack" Version="3.*" />
+		<PackageReference Include="ENet-CSharp" Version="2.*" />
+		<PackageReference Include="DotNext.Threading" Version="5.*" />
+		<PackageReference Include="MathNet.Numerics" Version="5.*" />
+		<PackageReference Include="Fasterflect" Version="3.*" />
+		<PackageReference Include="Collections.Pooled.V2" Version="2.*" />
+		<PackageReference Include="K4os.Compression.LZ4" Version="1.*" />
+	</ItemGroup>
+</Project>
