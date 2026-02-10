@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<Optimize>true</Optimize>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Company>TamKungZ_</Company>
+		<Authors>TamKungZ_</Authors>
+		<Product>KitsuneEngine.Input</Product>
+		<Description>Input management system for keyboard, mouse, and gamepad.</Description>
+		<Version>1.0.0</Version>
+		<AssemblyName>KitsuneEngine.Input</AssemblyName>
+		<RootNamespace>KitsuneEngine.Input</RootNamespace>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Silk.NET.Input" Version="2.*" />
+		<PackageReference Include="System.Numerics.Vectors" Version="4.*" />
+	</ItemGroup>
+</Project>

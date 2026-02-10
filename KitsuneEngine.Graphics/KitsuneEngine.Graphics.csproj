@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Optimize>true</Optimize>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Company>TamKungZ_</Company>
+		<Authors>TamKungZ_</Authors>
+		<Product>KitsuneEngine.Graphics</Product>
+		<Description>Graphics rendering system including SpriteBatch, Camera, Lighting, and Animation.</Description>
+		<Version>1.0.0</Version>
+		<AssemblyName>KitsuneEngine.Graphics</AssemblyName>
+		<RootNamespace>KitsuneEngine.Graphics</RootNamespace>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Silk.NET.OpenGL" Version="2.*" />
+		<PackageReference Include="Silk.NET.Vulkan" Version="2.*" />
+		<PackageReference Include="StbImageSharp" Version="2.*" />
+		<PackageReference Include="System.Numerics.Vectors" Version="4.*" />
+	</ItemGroup>
+</Project>

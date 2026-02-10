@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Optimize>true</Optimize>
+		<TieredCompilation>true</TieredCompilation>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Company>TamKungZ_</Company>
+		<Authors>TamKungZ_</Authors>
+		<Product>KitsuneEngine.Core</Product>
+		<Description>Core functionality for KitsuneEngine including Game loop, Scene management, and Transform system.</Description>
+		<Version>1.0.0</Version>
+		<AssemblyName>KitsuneEngine.Core</AssemblyName>
+		<RootNamespace>KitsuneEngine.Core</RootNamespace>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Silk.NET.Windowing" Version="2.*" />
+		<PackageReference Include="Silk.NET.OpenGL" Version="2.*" />
+		<PackageReference Include="Silk.NET.Input" Version="2.*" />
+		<PackageReference Include="System.Numerics.Vectors" Version="4.*" />
+		
+		<PackageReference Include="Serilog" Version="4.*" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="6.*" />
+		<PackageReference Include="BenchmarkDotNet" Version="0.*" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.*" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.*" />
+		<PackageReference Include="Microsoft.Extensions.DependencyModel" Version="9.*" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.*" />
+	</ItemGroup>
+	
+	<ItemGroup>
+	  <ProjectReference Include="..\KitsuneEngine.Input\KitsuneEngine.Input.csproj" />
+	  <ProjectReference Include="..\KitsuneEngine.Audio\KitsuneEngine.Audio.csproj" />
+	  <ProjectReference Include="..\KitsuneEngine.Graphics\KitsuneEngine.Graphics.csproj" />
+	  <ProjectReference Include="..\KitsuneEngine.Network\KitsuneEngine.Network.csproj" />
+	  <ProjectReference Include="..\KitsuneEngine.Assets\KitsuneEngine.Assets.csproj" />
+	</ItemGroup>
+</Project>

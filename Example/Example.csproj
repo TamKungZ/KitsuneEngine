@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\KitsuneEngine.Core\KitsuneEngine.Core.csproj" />
+		<ProjectReference Include="..\KitsuneEngine.Graphics\KitsuneEngine.Graphics.csproj" />
+		<ProjectReference Include="..\KitsuneEngine.Input\KitsuneEngine.Input.csproj" />
+		<ProjectReference Include="..\KitsuneEngine.Audio\KitsuneEngine.Audio.csproj" />
+		<ProjectReference Include="..\KitsuneEngine.Assets\KitsuneEngine.Assets.csproj" />
+	</ItemGroup>
+</Project>

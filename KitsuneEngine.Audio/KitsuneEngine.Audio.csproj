@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Optimize>true</Optimize>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Company>TamKungZ_</Company>
+		<Authors>TamKungZ_</Authors>
+		<Product>KitsuneEngine.Audio</Product>
+		<Description>Audio system with OpenAL support for playing sounds and music.</Description>
+		<Version>1.0.0</Version>
+		<AssemblyName>KitsuneEngine.Audio</AssemblyName>
+		<RootNamespace>KitsuneEngine.Audio</RootNamespace>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Silk.NET.OpenAL" Version="2.*" />
+	</ItemGroup>
+</Project>
