@@ -3,12 +3,12 @@ name: .NET Build
 on:
   push:
     branches:
-      - main
+      - prototype
     tags:
       - "v*"
   pull_request:
     branches:
-      - main
+      - prototype
 
 jobs:
   build:
