@@ -11,6 +11,10 @@ public class LightingSystem : IDisposable
 
     public Vector4 AmbientColor { get; set; } = new Vector4(0.2f, 0.2f, 0.3f, 1.0f);
 
+    // Specular tuning for shaders
+    public float SpecularPower { get; set; } = 32f;
+    public float SpecularIntensity { get; set; } = 0.5f;
+
     public LightingSystem(GL gl)
     {
         _gl = gl;
@@ -47,25 +51,42 @@ public class LightingSystem : IDisposable
 
         var activeLights = _lights.Where(l => l.IsActive).Take(MAX_LIGHTS).ToList();
 
-        _gl.Uniform1(_gl.GetUniformLocation(shader, "uLightCount"), activeLights.Count);
-        _gl.Uniform4(_gl.GetUniformLocation(shader, "uAmbientColor"),
-            AmbientColor.X, AmbientColor.Y, AmbientColor.Z, AmbientColor.W);
+        int locCount = _gl.GetUniformLocation(shader, "uLightCount");
+        if (locCount >= 0)
+            _gl.Uniform1(locCount, activeLights.Count);
+
+        int locAmb = _gl.GetUniformLocation(shader, "uAmbientColor");
+        if (locAmb >= 0)
+            _gl.Uniform4(locAmb, AmbientColor.X, AmbientColor.Y, AmbientColor.Z, AmbientColor.W);
+
+        // specular settings
+        int locSpecPow = _gl.GetUniformLocation(shader, "uSpecularPower");
+        if (locSpecPow >= 0)
+            _gl.Uniform1(locSpecPow, SpecularPower);
+
+        int locSpecInt = _gl.GetUniformLocation(shader, "uSpecularIntensity");
+        if (locSpecInt >= 0)
+            _gl.Uniform1(locSpecInt, SpecularIntensity);
 
         for (int i = 0; i < activeLights.Count; i++)
         {
             var light = activeLights[i];
 
-            _gl.Uniform2(_gl.GetUniformLocation(shader, $"uLightPositions[{i}]"),
-                light.Position.X, light.Position.Y);
+            int locPos = _gl.GetUniformLocation(shader, $"uLightPositions[{i}]");
+            if (locPos >= 0)
+                _gl.Uniform2(locPos, light.Position.X, light.Position.Y);
 
-            _gl.Uniform4(_gl.GetUniformLocation(shader, $"uLightColors[{i}]"),
-                light.Color.X, light.Color.Y, light.Color.Z, light.Color.W);
+            int locCol = _gl.GetUniformLocation(shader, $"uLightColors[{i}]");
+            if (locCol >= 0)
+                _gl.Uniform4(locCol, light.Color.X, light.Color.Y, light.Color.Z, light.Color.W);
 
-            _gl.Uniform1(_gl.GetUniformLocation(shader, $"uLightIntensities[{i}]"),
-                light.Intensity);
+            int locInt = _gl.GetUniformLocation(shader, $"uLightIntensities[{i}]");
+            if (locInt >= 0)
+                _gl.Uniform1(locInt, light.Intensity);
 
-            _gl.Uniform1(_gl.GetUniformLocation(shader, $"uLightRadii[{i}]"),
-                light.Radius);
+            int locRad = _gl.GetUniformLocation(shader, $"uLightRadii[{i}]");
+            if (locRad >= 0)
+                _gl.Uniform1(locRad, light.Radius);
         }
     }
 

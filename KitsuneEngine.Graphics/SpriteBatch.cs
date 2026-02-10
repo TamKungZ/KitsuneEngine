@@ -23,14 +23,23 @@ public class SpriteBatch : IDisposable
     private bool _useLighting;
     private Vector4 _ambientColor = new Vector4(0.3f, 0.3f, 0.3f, 1.0f);
 
+    // Reference to LightingSystem (optional)
+    private LightingSystem? _lightingSystem;
+
+    // Tone control
+    private Vector3 _tone = Vector3.One;
+    private float _exposure = 1.0f;
+
+    private const int MAX_TEXTURE_SLOTS = 16;
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Vertex
     {
-        public Vector2 Position;
-        public Vector2 TexCoord;
-        public Vector4 Color;
-        public float TexIndex;
-        public Vector2 Normal; // For normal mapping
+        public Vector2 Position;  // 2 floats
+        public Vector2 TexCoord;  // 2 floats
+        public Vector4 Color;     // 4 floats
+        public float TexIndex;    // 1 float (diffuse sampler index)
+        public float NormalIndex; // 1 float (normal sampler index, -1 if none)
     }
 
     public SpriteBatch(GL gl)
@@ -41,6 +50,15 @@ public class SpriteBatch : IDisposable
         CreateBuffers();
         CreateShaders();
     }
+
+    public void SetLightingSystem(LightingSystem lightingSystem)
+    {
+        _lightingSystem = lightingSystem;
+    }
+
+    public void SetTone(Vector3 tone) => _tone = tone;
+    public void SetExposure(float exposure) => _exposure = exposure;
+    public void SetAmbientLight(Vector4 color) => _ambientColor = color;
 
     private unsafe void CreateBuffers()
     {
@@ -69,24 +87,33 @@ public class SpriteBatch : IDisposable
             _gl.BufferData(BufferTargetARB.ElementArrayBuffer, (nuint)(indices.Length * sizeof(uint)), ptr, BufferUsageARB.StaticDraw);
         }
 
+        // Attribute layout based on Vertex struct:
+        // Position (location=0) vec2  offset 0
+        // TexCoord (1) vec2          offset 2 * sizeof(float)
+        // Color (2) vec4             offset 4 * sizeof(float)
+        // TexIndex (3) float         offset 8 * sizeof(float)
+        // NormalIndex (4) float      offset 9 * sizeof(float)
+
+        uint stride = (uint)sizeof(Vertex);
+
         // Position
-        _gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)0);
+        _gl.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, stride, (void*)0);
         _gl.EnableVertexAttribArray(0);
 
         // TexCoord
-        _gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(2 * sizeof(float)));
+        _gl.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, stride, (void*)(2 * sizeof(float)));
         _gl.EnableVertexAttribArray(1);
 
         // Color
-        _gl.VertexAttribPointer(2, 4, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(4 * sizeof(float)));
+        _gl.VertexAttribPointer(2, 4, VertexAttribPointerType.Float, false, stride, (void*)(4 * sizeof(float)));
         _gl.EnableVertexAttribArray(2);
 
         // TexIndex
-        _gl.VertexAttribPointer(3, 1, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(8 * sizeof(float)));
+        _gl.VertexAttribPointer(3, 1, VertexAttribPointerType.Float, false, stride, (void*)(8 * sizeof(float)));
         _gl.EnableVertexAttribArray(3);
 
-        // Normal
-        _gl.VertexAttribPointer(4, 2, VertexAttribPointerType.Float, false, (uint)sizeof(Vertex), (void*)(9 * sizeof(float)));
+        // NormalIndex
+        _gl.VertexAttribPointer(4, 1, VertexAttribPointerType.Float, false, stride, (void*)(9 * sizeof(float)));
         _gl.EnableVertexAttribArray(4);
 
         _gl.BindVertexArray(0);
@@ -107,15 +134,15 @@ public class SpriteBatch : IDisposable
             layout (location = 1) in vec2 aTexCoord;
             layout (location = 2) in vec4 aColor;
             layout (location = 3) in float aTexIndex;
-            layout (location = 4) in vec2 aNormal;
+            layout (location = 4) in float aNormalIndex;
             
             uniform mat4 uTransform;
             
             out vec2 TexCoord;
             out vec4 Color;
             out float TexIndex;
+            out float NormalIndex;
             out vec2 FragPos;
-            out vec2 Normal;
             
             void main()
             {
@@ -125,7 +152,7 @@ public class SpriteBatch : IDisposable
                 TexCoord = aTexCoord;
                 Color = aColor;
                 TexIndex = aTexIndex;
-                Normal = aNormal;
+                NormalIndex = aNormalIndex;
             }
         ";
 
@@ -134,10 +161,11 @@ public class SpriteBatch : IDisposable
             in vec2 TexCoord;
             in vec4 Color;
             in float TexIndex;
+            in float NormalIndex;
             in vec2 FragPos;
-            in vec2 Normal;
             
             uniform sampler2D uTextures[16];
+            uniform sampler2D uNormalMaps[16];
             
             out vec4 FragColor;
             
@@ -160,15 +188,15 @@ public class SpriteBatch : IDisposable
             layout (location = 1) in vec2 aTexCoord;
             layout (location = 2) in vec4 aColor;
             layout (location = 3) in float aTexIndex;
-            layout (location = 4) in vec2 aNormal;
+            layout (location = 4) in float aNormalIndex;
             
             uniform mat4 uTransform;
             
             out vec2 TexCoord;
             out vec4 Color;
             out float TexIndex;
+            out float NormalIndex;
             out vec2 FragPos;
-            out vec2 Normal;
             
             void main()
             {
@@ -178,7 +206,7 @@ public class SpriteBatch : IDisposable
                 TexCoord = aTexCoord;
                 Color = aColor;
                 TexIndex = aTexIndex;
-                Normal = aNormal;
+                NormalIndex = aNormalIndex;
             }
         ";
 
@@ -187,44 +215,78 @@ public class SpriteBatch : IDisposable
             in vec2 TexCoord;
             in vec4 Color;
             in float TexIndex;
+            in float NormalIndex;
             in vec2 FragPos;
-            in vec2 Normal;
             
             uniform sampler2D uTextures[16];
+            uniform sampler2D uNormalMaps[16];
+
             uniform vec4 uAmbientColor;
+            uniform vec3 uTone;
+            uniform float uExposure;
+            uniform float uSpecularPower;
+            uniform float uSpecularIntensity;
+
+            // lights
             uniform vec2 uLightPositions[32];
             uniform vec4 uLightColors[32];
             uniform float uLightIntensities[32];
             uniform float uLightRadii[32];
             uniform int uLightCount;
-            
+
             out vec4 FragColor;
             
             void main()
             {
                 int index = int(TexIndex);
                 vec4 texColor = texture(uTextures[index], TexCoord);
-                
+
+                // compute normal: if NormalIndex < 0 use default (0,0,1)
+                vec3 N = vec3(0.0, 0.0, 1.0);
+                if (NormalIndex >= 0.0)
+                {
+                    int nidx = int(NormalIndex);
+                    vec3 nSample = texture(uNormalMaps[nidx], TexCoord).rgb;
+                    N = normalize(nSample * 2.0 - 1.0);
+                }
+
                 vec3 ambient = uAmbientColor.rgb * uAmbientColor.a;
                 vec3 lighting = ambient;
-                
+
+                vec3 viewDir = vec3(0.0, 0.0, 1.0); // orthographic 2D camera, view towards +Z
+
                 for (int i = 0; i < uLightCount; i++)
                 {
-                    vec2 lightDir = uLightPositions[i] - FragPos;
-                    float distance = length(lightDir);
-                    
+                    vec2 lightPos = uLightPositions[i];
+                    vec2 lightDir2 = lightPos - FragPos;
+                    float distance = length(lightDir2);
+
                     if (distance < uLightRadii[i])
                     {
                         float attenuation = 1.0 - (distance / uLightRadii[i]);
-                        attenuation = pow(attenuation, 2.0);
-                        
-                        vec3 lightContribution = uLightColors[i].rgb * uLightIntensities[i] * attenuation;
+                        attenuation = attenuation * attenuation; // quadratic falloff
+
+                        vec3 L = normalize(vec3(lightDir2, 0.0));
+                        float diff = max(dot(N, L), 0.0);
+
+                        // specular (Blinn-Phong)
+                        vec3 H = normalize(L + viewDir);
+                        float spec = pow(max(dot(N, H), 0.0), uSpecularPower) * uSpecularIntensity;
+
+                        vec3 lightContribution = uLightColors[i].rgb * (uLightIntensities[i] * (diff + spec)) * attenuation;
                         lighting += lightContribution;
                     }
                 }
-                
+
                 lighting = clamp(lighting, 0.0, 1.0);
-                FragColor = texColor * Color * vec4(lighting, 1.0);
+
+                vec3 color = (texColor.rgb * Color.rgb) * lighting;
+
+                // apply tone and exposure
+                color = color * uTone;
+                color = vec3(1.0) - exp(-color * uExposure); // simple exposure mapping
+
+                FragColor = vec4(color, texColor.a * Color.a);
             }
         ";
 
@@ -245,9 +307,16 @@ public class SpriteBatch : IDisposable
         _gl.DeleteShader(fragmentShader);
 
         _gl.UseProgram(program);
-        int[] samplers = new int[16];
-        for (int i = 0; i < 16; i++) samplers[i] = i;
-        _gl.Uniform1(_gl.GetUniformLocation(program, "uTextures"), samplers);
+        int[] samplers = new int[MAX_TEXTURE_SLOTS];
+        for (int i = 0; i < MAX_TEXTURE_SLOTS; i++) samplers[i] = i;
+
+        int locTex = _gl.GetUniformLocation(program, "uTextures");
+        if (locTex >= 0)
+            _gl.Uniform1(locTex, samplers);
+
+        int locNormal = _gl.GetUniformLocation(program, "uNormalMaps");
+        if (locNormal >= 0)
+            _gl.Uniform1(locNormal, samplers);
 
         return program;
     }
@@ -279,23 +348,42 @@ public class SpriteBatch : IDisposable
         _currentShader = useLighting ? _lightingShader : _defaultShader;
     }
 
+    // Added optional normalTexture parameter. Pass 0 for none / omit parameter.
     public void Draw(uint texture, Vector2 position, Vector2 size, Vector4 color,
                      Vector2? sourcePos = null, Vector2? sourceSize = null,
-                     float rotation = 0, Vector2? origin = null)
+                     float rotation = 0, Vector2? origin = null, uint? normalTexture = null)
     {
         if (!_begun) throw new InvalidOperationException("Begin() must be called before Draw()");
         if (_spriteCount >= _maxSprites) Flush();
 
+        Vector2 orig = origin ?? Vector2.Zero;
+        Vector2 texMin = sourcePos ?? Vector2.Zero;
+        Vector2 texMax = sourceSize ?? Vector2.One;
+
+        // ensure there is room in texture slots for any new textures we need to add
+        int need = 0;
+        if (!_textureSlots.ContainsKey(texture)) need++;
+        if (normalTexture.HasValue && !_textureSlots.ContainsKey(normalTexture.Value)) need++;
+        if (_currentTextureSlot + need > MAX_TEXTURE_SLOTS)
+            Flush();
+
+        // diffuse slot
         if (!_textureSlots.TryGetValue(texture, out int texSlot))
         {
-            if (_currentTextureSlot >= 16) Flush();
             texSlot = _currentTextureSlot++;
             _textureSlots[texture] = texSlot;
         }
 
-        Vector2 orig = origin ?? Vector2.Zero;
-        Vector2 texMin = sourcePos ?? Vector2.Zero;
-        Vector2 texMax = sourceSize ?? Vector2.One;
+        int normalSlot = -1;
+        if (normalTexture.HasValue)
+        {
+            uint ntex = normalTexture.Value;
+            if (!_textureSlots.TryGetValue(ntex, out normalSlot))
+            {
+                normalSlot = _currentTextureSlot++;
+                _textureSlots[ntex] = normalSlot;
+            }
+        }
 
         // Calculate corners with rotation
         Vector2[] corners = new Vector2[4];
@@ -318,10 +406,11 @@ public class SpriteBatch : IDisposable
         }
 
         int idx = _spriteCount * 4;
-        _vertices[idx + 0] = new Vertex { Position = corners[0], TexCoord = new Vector2(texMin.X, texMin.Y), Color = color, TexIndex = texSlot };
-        _vertices[idx + 1] = new Vertex { Position = corners[1], TexCoord = new Vector2(texMax.X, texMin.Y), Color = color, TexIndex = texSlot };
-        _vertices[idx + 2] = new Vertex { Position = corners[2], TexCoord = new Vector2(texMax.X, texMax.Y), Color = color, TexIndex = texSlot };
-        _vertices[idx + 3] = new Vertex { Position = corners[3], TexCoord = new Vector2(texMin.X, texMax.Y), Color = color, TexIndex = texSlot };
+        float nIndex = normalSlot >= 0 ? (float)normalSlot : -1.0f;
+        _vertices[idx + 0] = new Vertex { Position = corners[0], TexCoord = new Vector2(texMin.X, texMin.Y), Color = color, TexIndex = texSlot, NormalIndex = nIndex };
+        _vertices[idx + 1] = new Vertex { Position = corners[1], TexCoord = new Vector2(texMax.X, texMin.Y), Color = color, TexIndex = texSlot, NormalIndex = nIndex };
+        _vertices[idx + 2] = new Vertex { Position = corners[2], TexCoord = new Vector2(texMax.X, texMax.Y), Color = color, TexIndex = texSlot, NormalIndex = nIndex };
+        _vertices[idx + 3] = new Vertex { Position = corners[3], TexCoord = new Vector2(texMin.X, texMax.Y), Color = color, TexIndex = texSlot, NormalIndex = nIndex };
 
         _spriteCount++;
     }
@@ -333,8 +422,6 @@ public class SpriteBatch : IDisposable
             point.X * sin + point.Y * cos
         );
     }
-
-    public void SetAmbientLight(Vector4 color) => _ambientColor = color;
 
     public void End()
     {
@@ -349,16 +436,35 @@ public class SpriteBatch : IDisposable
 
         _gl.UseProgram(_currentShader);
 
+        // set transform
         fixed (float* ptr = &_transform.M11)
         {
-            _gl.UniformMatrix4(_gl.GetUniformLocation(_currentShader, "uTransform"), 1, false, ptr);
+            int loc = _gl.GetUniformLocation(_currentShader, "uTransform");
+            if (loc >= 0)
+                _gl.UniformMatrix4(loc, 1, false, ptr);
         }
 
+        // ambient color
         if (_useLighting)
         {
-            _gl.Uniform4(_gl.GetUniformLocation(_currentShader, "uAmbientColor"), _ambientColor.X, _ambientColor.Y, _ambientColor.Z, _ambientColor.W);
+            int locAmb = _gl.GetUniformLocation(_currentShader, "uAmbientColor");
+            if (locAmb >= 0)
+                _gl.Uniform4(locAmb, _ambientColor.X, _ambientColor.Y, _ambientColor.Z, _ambientColor.W);
+
+            // tone/exposure/specular: set if uniforms present
+            int locTone = _gl.GetUniformLocation(_currentShader, "uTone");
+            if (locTone >= 0)
+                _gl.Uniform3(locTone, _tone.X, _tone.Y, _tone.Z);
+
+            int locExp = _gl.GetUniformLocation(_currentShader, "uExposure");
+            if (locExp >= 0)
+                _gl.Uniform1(locExp, _exposure);
+
+            // let lighting system upload lights + specular params
+            _lightingSystem?.ApplyLights(_currentShader);
         }
 
+        // bind textures (both diffuse and normal maps are stored in same _textureSlots dictionary)
         foreach (var kvp in _textureSlots)
         {
             _gl.ActiveTexture(TextureUnit.Texture0 + kvp.Value);

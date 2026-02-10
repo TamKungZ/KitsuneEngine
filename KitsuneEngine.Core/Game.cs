@@ -14,12 +14,14 @@ public abstract class Game : IDisposable
     public int Width { get; private set; }
     public int Height { get; private set; }
     public string Title { get; set; }
+    public bool StartFullscreen { get; set; } = false;
+    public bool StartBorderless { get; set; } = false;
+    public bool IsResizable { get; set; } = true;
 
     protected GL GL => _gl;
     protected double DeltaTime { get; private set; }
     protected double TotalTime { get; private set; }
 
-    // Services
     public ServiceContainer Services { get; private set; }
     public SceneManager SceneManager { get; private set; } = null!;
 
@@ -37,6 +39,9 @@ public abstract class Game : IDisposable
         options.Size = new Silk.NET.Maths.Vector2D<int>(Width, Height);
         options.Title = Title;
         options.VSync = true;
+        options.WindowState = StartFullscreen ? WindowState.Fullscreen : WindowState.Normal;
+        options.WindowBorder = StartBorderless ? WindowBorder.Hidden :
+                              (IsResizable ? WindowBorder.Resizable : WindowBorder.Fixed);
 
         _window = Window.Create(options);
 
@@ -49,6 +54,50 @@ public abstract class Game : IDisposable
         _window.Run();
     }
 
+    public void SetFullscreen(bool borderless = false)
+    {
+        _window.WindowState = WindowState.Fullscreen;
+        _window.WindowBorder = borderless ? WindowBorder.Hidden : WindowBorder.Fixed;
+    }
+
+    public void SetWindowed(int width, int height, bool borderless = false, bool resizable = true)
+    {
+        _window.WindowState = WindowState.Normal;
+        _window.WindowBorder = borderless ? WindowBorder.Hidden :
+                              (resizable ? WindowBorder.Resizable : WindowBorder.Fixed);
+        SetWindowSize(width, height);
+    }
+
+    public void SetBorderless(bool borderless)
+    {
+        _window.WindowBorder = borderless ? WindowBorder.Hidden :
+                              (IsResizable ? WindowBorder.Resizable : WindowBorder.Fixed);
+    }
+
+    public void SetWindowSize(int width, int height)
+    {
+        if (_window.WindowState != WindowState.Fullscreen)
+        {
+            _window.Size = new Silk.NET.Maths.Vector2D<int>(width, height);
+        }
+    }
+
+    public void ToggleFullscreen(bool borderless = false)
+    {
+        if (_window.WindowState == WindowState.Fullscreen)
+        {
+            SetWindowed(Width, Height);
+        }
+        else
+        {
+            SetFullscreen(borderless);
+        }
+    }
+
+    public bool IsFullscreen => _window.WindowState == WindowState.Fullscreen;
+    public bool IsBorderless => _window.WindowBorder == WindowBorder.Hidden;
+    public (int Width, int Height) WindowSize => (Width, Height);
+
     private void OnWindowLoad()
     {
         _gl = _window.CreateOpenGL();
@@ -58,7 +107,6 @@ public abstract class Game : IDisposable
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
-        // Initialize core services
         Services.Register(_gl);
         Services.Register(_window);
         Services.Register(new KitsuneEngine.Input.InputManager(_input));
@@ -125,7 +173,6 @@ public abstract class Game : IDisposable
     }
 }
 
-// Service Container for Dependency Injection
 public class ServiceContainer : IDisposable
 {
     private Dictionary<Type, object> _services = new();
@@ -164,7 +211,6 @@ public class ServiceContainer : IDisposable
     }
 }
 
-// Time Management
 public class Time
 {
     public float DeltaTime { get; private set; }
