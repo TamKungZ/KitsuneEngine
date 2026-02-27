@@ -52,7 +52,12 @@ namespace KitsuneEngine.Network
 
         private void SyncEntity(NetworkComponent component)
         {
-            if (!component.IsOwner || !_networkManager.IsConnected) return;
+            SyncEntity(component, 0, requireOwnership: true);
+        }
+
+        private void SyncEntity(NetworkComponent component, uint targetPeerId, bool requireOwnership)
+        {
+            if ((requireOwnership && !component.IsOwner) || !_networkManager.IsConnected) return;
 
             // Create sync packet
             var packet = new EntitySyncPacket
@@ -79,7 +84,7 @@ namespace KitsuneEngine.Network
             {
                 Type = MessageType.EntitySync,
                 SenderId = _networkManager.LocalPeerId,
-                TargetId = 0, // Broadcast
+                TargetId = targetPeerId, // 0 = Broadcast
                 Data = Serialize(packet),
                 Timestamp = DateTime.Now
             };
@@ -203,7 +208,7 @@ namespace KitsuneEngine.Network
             foreach (var entity in _world.GetEntities().With<NetworkComponent>().AsEnumerable())
             {
                 var component = entity.Get<NetworkComponent>();
-                SyncEntity(component);
+                SyncEntity(component, peerId, requireOwnership: false);
             }
         }
 

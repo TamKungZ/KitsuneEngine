@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text;
+using System.Text.Json;
 
 namespace KitsuneEngine.Network
 {
@@ -13,8 +15,6 @@ namespace KitsuneEngine.Network
     {
         private NetManager? _netManager;
         private EventBasedNetListener _listener;
-        private NetDataWriter _dataWriter;
-        private NetPacketProcessor _packetProcessor;
 
         private readonly NetworkConfig _config;
         private readonly ConcurrentDictionary<uint, NetPeer> _peers;
@@ -45,12 +45,9 @@ namespace KitsuneEngine.Network
             _incomingMessages = new ConcurrentQueue<NetworkMessage>();
             _networkEvents = new ConcurrentQueue<NetworkEventArgs>();
             _messageHandlers = new Dictionary<MessageType, Action<NetworkMessage>>();
-            _dataWriter = new NetDataWriter();
             _listener = new EventBasedNetListener();
-            _packetProcessor = new NetPacketProcessor();
 
             SetupListeners();
-            RegisterPacketTypes();
         }
 
         private void SetupListeners()
@@ -78,11 +75,11 @@ namespace KitsuneEngine.Network
                 if (_isServer)
                 {
                     SendPeerId(peer, peerId);
+                    _networkEvents.Enqueue(new NetworkEventArgs { PeerId = peerId });
+                    OnConnected?.Invoke(this, new NetworkEventArgs { PeerId = peerId });
                 }
 
                 Log($"Peer connected: {peer.Address}:{peer.Port}");
-                _networkEvents.Enqueue(new NetworkEventArgs { PeerId = peerId });
-                OnConnected?.Invoke(this, new NetworkEventArgs { PeerId = peerId });
             };
 
             _listener.PeerDisconnectedEvent += (peer, info) =>
@@ -138,57 +135,12 @@ namespace KitsuneEngine.Network
                    method == LiteNetLib.DeliveryMethod.ReliableOrdered;
         }
 
-        private void RegisterPacketTypes()
-        {
-            // Register serialization methods for custom types
-            _packetProcessor.RegisterNestedType(WriteVector2, ReadVector2);
-            _packetProcessor.RegisterNestedType(WriteVector3, ReadVector3);
-            _packetProcessor.RegisterNestedType(WriteQuaternion, ReadQuaternion);
-
-            // Register packet classes
-            _packetProcessor.SubscribeReusable<ConnectPacket, NetPeer>(OnConnectPacket);
-            _packetProcessor.SubscribeReusable<EntitySyncPacket, NetPeer>(OnEntitySyncPacket);
-            _packetProcessor.SubscribeReusable<RPCPacket, NetPeer>(OnRPCPacket);
-        }
-
-        // Serialization methods for custom types
-        private void WriteVector2(NetDataWriter writer, NetVector2 vector)
-        {
-            writer.Put(vector.X);
-            writer.Put(vector.Y);
-        }
-
-        private NetVector2 ReadVector2(NetDataReader reader)
-        {
-            return new NetVector2(reader.GetFloat(), reader.GetFloat());
-        }
-
-        private void WriteVector3(NetDataWriter writer, NetVector3 vector)
-        {
-            writer.Put(vector.X);
-            writer.Put(vector.Y);
-            writer.Put(vector.Z);
-        }
-
-        private NetVector3 ReadVector3(NetDataReader reader)
-        {
-            return new NetVector3(reader.GetFloat(), reader.GetFloat(), reader.GetFloat());
-        }
-
-        private void WriteQuaternion(NetDataWriter writer, NetQuaternion quat)
-        {
-            writer.Put(quat.X);
-            writer.Put(quat.Y);
-            writer.Put(quat.Z);
-            writer.Put(quat.W);
-        }
-
-        private NetQuaternion ReadQuaternion(NetDataReader reader)
-        {
-            return new NetQuaternion(reader.GetFloat(), reader.GetFloat(), reader.GetFloat(), reader.GetFloat());
-        }
-
         public void StartServer()
+        {
+            StartServer(_config.Port);
+        }
+
+        public void StartServer(int port)
         {
             if (_isRunning) return;
 
@@ -207,10 +159,10 @@ namespace KitsuneEngine.Network
                 UpdateTime = 15
             };
 
-            _netManager.Start(_config.Port);
+            _netManager.Start(port);
             _isRunning = true;
 
-            Log($"Server started on port {_config.Port}");
+            Log($"Server started on port {port}");
 
             // Start update loop
             _cancellationTokenSource = new CancellationTokenSource();
@@ -307,6 +259,8 @@ namespace KitsuneEngine.Network
         {
             while (_incomingMessages.TryDequeue(out var message))
             {
+                ProcessInternalMessage(message);
+
                 OnMessageReceived?.Invoke(this, new NetworkEventArgs
                 {
                     PeerId = message.SenderId,
@@ -317,6 +271,25 @@ namespace KitsuneEngine.Network
                 {
                     handler(message);
                 }
+            }
+        }
+
+        private void ProcessInternalMessage(NetworkMessage message)
+        {
+            switch (message.Type)
+            {
+                case MessageType.Connect:
+                    if (_isServer)
+                    {
+                        return;
+                    }
+
+                    var connectPacket = Deserialize<ConnectPacket>(message.Data);
+                    _localPeerId = connectPacket.AssignedId;
+                    Log($"Assigned peer ID: {_localPeerId}");
+                    _networkEvents.Enqueue(new NetworkEventArgs { PeerId = _localPeerId });
+                    OnConnected?.Invoke(this, new NetworkEventArgs { PeerId = _localPeerId });
+                    break;
             }
         }
 
@@ -336,22 +309,22 @@ namespace KitsuneEngine.Network
         {
             if (!_isRunning || _netManager == null) return;
 
-            _dataWriter.Reset();
-            _dataWriter.Put((byte)message.Type);
-            _dataWriter.Put(message.SenderId);
-            _dataWriter.Put(message.TargetId);
-            _dataWriter.Put(message.Timestamp.ToBinary());
-            _dataWriter.Put(message.Data);
+            var writer = new NetDataWriter();
+            writer.Put((byte)message.Type);
+            writer.Put(message.SenderId);
+            writer.Put(message.TargetId);
+            writer.Put(message.Timestamp.ToBinary());
+            writer.Put(message.Data);
 
             var netMethod = ConvertDeliveryMethod(method);
 
             if (message.TargetId == 0) // Broadcast
             {
-                _netManager.SendToAll(_dataWriter, (byte)message.Channel, netMethod);
+                _netManager.SendToAll(writer, (byte)message.Channel, netMethod);
             }
             else if (_peers.TryGetValue(message.TargetId, out var peer))
             {
-                peer.Send(_dataWriter, (byte)message.Channel, netMethod);
+                peer.Send(writer, (byte)message.Channel, netMethod);
             }
         }
 
@@ -376,49 +349,40 @@ namespace KitsuneEngine.Network
                 Arguments = args
             };
 
-            SendPacket(packet, DeliveryMethod.ReliableOrdered);
-        }
-
-        private void SendPacket<T>(T packet, DeliveryMethod method) where T : class, new()
-        {
-            if (!_isRunning || _netManager == null) return;
-
-            _dataWriter.Reset();
-            _packetProcessor.Write(_dataWriter, packet);
-
-            _netManager.SendToAll(_dataWriter, ConvertDeliveryMethod(method));
+            SendMessage(new NetworkMessage
+            {
+                Type = MessageType.RPC,
+                SenderId = _localPeerId,
+                TargetId = 0,
+                Channel = 0,
+                Timestamp = DateTime.UtcNow,
+                Data = Serialize(packet)
+            }, DeliveryMethod.ReliableOrdered);
         }
 
         private void SendPeerId(NetPeer peer, uint peerId)
         {
             var packet = new ConnectPacket { AssignedId = peerId };
-            SendToPeer(peer, packet, DeliveryMethod.ReliableOrdered);
+            SendMessage(new NetworkMessage
+            {
+                Type = MessageType.Connect,
+                SenderId = _localPeerId,
+                TargetId = peerId,
+                Channel = 0,
+                Timestamp = DateTime.UtcNow,
+                Data = Serialize(packet)
+            }, DeliveryMethod.ReliableOrdered);
         }
 
-        private void SendToPeer<T>(NetPeer peer, T packet, DeliveryMethod method) where T : class, new()
+        private byte[] Serialize<T>(T obj)
         {
-            _dataWriter.Reset();
-            _packetProcessor.Write(_dataWriter, packet);
-
-            peer.Send(_dataWriter, ConvertDeliveryMethod(method));
+            return Encoding.UTF8.GetBytes(JsonSerializer.Serialize(obj));
         }
 
-        // Packet handlers
-        private void OnConnectPacket(ConnectPacket packet, NetPeer peer)
+        private T Deserialize<T>(byte[] data)
         {
-            _localPeerId = packet.AssignedId;
-            Log($"Assigned peer ID: {_localPeerId}");
-            OnConnected?.Invoke(this, new NetworkEventArgs { PeerId = _localPeerId });
-        }
-
-        private void OnEntitySyncPacket(EntitySyncPacket packet, NetPeer peer)
-        {
-            // Handle entity synchronization
-        }
-
-        private void OnRPCPacket(RPCPacket packet, NetPeer peer)
-        {
-            // Handle RPC calls
+            var json = Encoding.UTF8.GetString(data);
+            return JsonSerializer.Deserialize<T>(json)!;
         }
 
         public void RegisterMessageHandler(MessageType type, Action<NetworkMessage> handler)

@@ -26,7 +26,7 @@ namespace KitsuneEngine.Network
 
         public void StartServer(int port = 7777)
         {
-            _networkManager.StartServer();
+            _networkManager.StartServer(port);
         }
 
         public void StartClient(string address = "127.0.0.1", int port = 7777)
