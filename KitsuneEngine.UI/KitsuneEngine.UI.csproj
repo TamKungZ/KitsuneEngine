@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<Optimize>true</Optimize>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Company>TamKungZ_</Company>
+		<Authors>TamKungZ_</Authors>
+		<Product>KitsuneEngine.UI</Product>
+		<Description>Lightweight renderable UI framework integrated with KitsuneEngine.Graphics.</Description>
+		<Version>1.0.0</Version>
+		<AssemblyName>KitsuneEngine.UI</AssemblyName>
+		<RootNamespace>KitsuneEngine.UI</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\KitsuneEngine.Graphics\KitsuneEngine.Graphics.csproj" />
+	</ItemGroup>
+</Project>
