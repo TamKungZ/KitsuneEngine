@@ -1,4 +1,5 @@
 using Silk.NET.OpenAL;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace KitsuneEngine.Audio;
@@ -57,6 +58,34 @@ public unsafe class AudioSystem : IDisposable
         source.Play();
     }
 
+    public void PlaySound3D(
+        string name,
+        Vector3 position,
+        float volume = 1.0f,
+        float pitch = 1.0f,
+        bool loop = false,
+        SpatialAudioSettings? spatial = null)
+    {
+        if (!_clips.TryGetValue(name, out var clip))
+            return;
+
+        var source = GetAvailableSource();
+        source.SetClip(clip);
+        source.Volume = volume;
+        source.Pitch = pitch;
+        source.Loop = loop;
+        source.SetPosition(position.X, position.Y, position.Z);
+
+        if (spatial != null)
+        {
+            source.SetDistanceAttenuation(spatial.ReferenceDistance, spatial.MaxDistance, spatial.RolloffFactor);
+            source.SetDirection(spatial.Direction.X, spatial.Direction.Y, spatial.Direction.Z);
+            source.SetCone(spatial.InnerAngle, spatial.OuterAngle, spatial.OuterGain);
+        }
+
+        source.Play();
+    }
+
     private AudioSource GetAvailableSource()
     {
         foreach (var source in _sources)
@@ -71,6 +100,33 @@ public unsafe class AudioSystem : IDisposable
     {
         _al.SetListenerProperty(ListenerVector3.Position, x, y, z);
         CheckALError("SetListenerPosition");
+    }
+
+    public void SetListenerVelocity(float x, float y, float z = 0)
+    {
+        _al.SetListenerProperty(ListenerVector3.Velocity, x, y, z);
+        CheckALError("SetListenerVelocity");
+    }
+
+    public void SetListenerOrientation(Vector3 forward, Vector3 up)
+    {
+        forward = Vector3.Normalize(forward);
+        up = Vector3.Normalize(up);
+
+        float[] orientation =
+        [
+            forward.X, forward.Y, forward.Z,
+            up.X, up.Y, up.Z
+        ];
+
+        unsafe
+        {
+            fixed (float* ptr = orientation)
+            {
+                _al.SetListenerProperty(ListenerFloatArray.Orientation, ptr);
+            }
+        }
+        CheckALError("SetListenerOrientation");
     }
 
     public void SetMasterVolume(float volume)
@@ -228,8 +284,39 @@ public class AudioSource : IDisposable
         _al.SetSourceProperty(Source, SourceVector3.Position, x, y, z);
     }
 
+    public void SetDirection(float x, float y, float z = 0)
+    {
+        _al.SetSourceProperty(Source, SourceVector3.Direction, x, y, z);
+    }
+
+    public void SetDistanceAttenuation(float referenceDistance = 1.0f, float maxDistance = 100f, float rolloffFactor = 1.0f)
+    {
+        _al.SetSourceProperty(Source, SourceFloat.ReferenceDistance, Math.Max(0.001f, referenceDistance));
+        _al.SetSourceProperty(Source, SourceFloat.MaxDistance, Math.Max(referenceDistance, maxDistance));
+        _al.SetSourceProperty(Source, SourceFloat.RolloffFactor, Math.Max(0f, rolloffFactor));
+    }
+
+    public void SetCone(float innerAngle = 360f, float outerAngle = 360f, float outerGain = 0f)
+    {
+        _al.SetSourceProperty(Source, SourceFloat.ConeInnerAngle, Math.Clamp(innerAngle, 0f, 360f));
+        _al.SetSourceProperty(Source, SourceFloat.ConeOuterAngle, Math.Clamp(outerAngle, 0f, 360f));
+        _al.SetSourceProperty(Source, SourceFloat.ConeOuterGain, Math.Clamp(outerGain, 0f, 1f));
+    }
+
     public void Dispose()
     {
         _al.DeleteSource(Source);
     }
+}
+
+public sealed class SpatialAudioSettings
+{
+    public float ReferenceDistance { get; set; } = 1.0f;
+    public float MaxDistance { get; set; } = 100f;
+    public float RolloffFactor { get; set; } = 1.0f;
+
+    public Vector3 Direction { get; set; } = new Vector3(0, 0, -1);
+    public float InnerAngle { get; set; } = 360f;
+    public float OuterAngle { get; set; } = 360f;
+    public float OuterGain { get; set; } = 0f;
 }
