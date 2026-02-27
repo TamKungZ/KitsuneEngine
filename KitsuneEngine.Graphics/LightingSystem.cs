@@ -6,8 +6,10 @@ namespace KitsuneEngine.Graphics;
 public class LightingSystem : IDisposable
 {
     private GL _gl;
-    private List<Light> _lights = new();
+    private readonly List<Light> _lights = new();
+    private readonly Dictionary<string, List<Light>> _layerLights = new(StringComparer.Ordinal);
     private const int MAX_LIGHTS = 32;
+    public const string DefaultLayer = "Default";
 
     public Vector4 AmbientColor { get; set; } = new Vector4(0.2f, 0.2f, 0.3f, 1.0f);
 
@@ -18,38 +20,55 @@ public class LightingSystem : IDisposable
     public LightingSystem(GL gl)
     {
         _gl = gl;
+        _layerLights[DefaultLayer] = new List<Light>();
     }
 
     public Light AddLight(Vector2 position, Vector4 color, float intensity = 1.0f, float radius = 200f)
+        => AddLight(DefaultLayer, position, color, intensity, radius);
+
+    public Light AddLight(string layerName, Vector2 position, Vector4 color, float intensity = 1.0f, float radius = 200f)
     {
+        if (string.IsNullOrWhiteSpace(layerName))
+            layerName = DefaultLayer;
+
         var light = new Light
         {
             Position = position,
             Color = color,
             Intensity = intensity,
             Radius = radius,
-            IsActive = true
+            IsActive = true,
+            Layer = layerName
         };
 
         _lights.Add(light);
+        GetOrCreateLayerLights(layerName).Add(light);
         return light;
     }
 
     public void RemoveLight(Light light)
     {
         _lights.Remove(light);
+
+        if (_layerLights.TryGetValue(light.Layer, out var lights))
+            lights.Remove(light);
     }
 
     public void ClearLights()
     {
         _lights.Clear();
+        foreach (var layer in _layerLights.Values)
+            layer.Clear();
     }
 
     public void ApplyLights(uint shader)
+        => ApplyLights(shader, null);
+
+    public void ApplyLights(uint shader, string? layerName)
     {
         _gl.UseProgram(shader);
 
-        var activeLights = _lights.Where(l => l.IsActive).Take(MAX_LIGHTS).ToList();
+        var activeLights = GetActiveLightsForLayer(layerName).Take(MAX_LIGHTS).ToList();
 
         int locCount = _gl.GetUniformLocation(shader, "uLightCount");
         if (locCount >= 0)
@@ -101,6 +120,52 @@ public class LightingSystem : IDisposable
     public void Dispose()
     {
         _lights.Clear();
+        _layerLights.Clear();
+    }
+
+    public void EnsureLayer(string layerName)
+    {
+        if (string.IsNullOrWhiteSpace(layerName))
+            return;
+
+        GetOrCreateLayerLights(layerName);
+    }
+
+    public bool RemoveLayer(string layerName)
+    {
+        if (string.IsNullOrWhiteSpace(layerName) || string.Equals(layerName, DefaultLayer, StringComparison.Ordinal))
+            return false;
+
+        if (!_layerLights.TryGetValue(layerName, out var lights))
+            return false;
+
+        foreach (var light in lights)
+            _lights.Remove(light);
+
+        return _layerLights.Remove(layerName);
+    }
+
+    private IEnumerable<Light> GetActiveLightsForLayer(string? layerName)
+    {
+        if (string.IsNullOrWhiteSpace(layerName))
+            return _lights.Where(l => l.IsActive);
+
+        if (_layerLights.TryGetValue(layerName, out var lights))
+            return lights.Where(l => l.IsActive);
+
+        // fallback behavior: unknown layer returns global active lights
+        return _lights.Where(l => l.IsActive);
+    }
+
+    private List<Light> GetOrCreateLayerLights(string layerName)
+    {
+        if (!_layerLights.TryGetValue(layerName, out var lights))
+        {
+            lights = new List<Light>();
+            _layerLights[layerName] = lights;
+        }
+
+        return lights;
     }
 }
 
@@ -111,6 +176,7 @@ public class Light
     public float Intensity { get; set; }
     public float Radius { get; set; }
     public bool IsActive { get; set; }
+    public string Layer { get; set; } = LightingSystem.DefaultLayer;
 
     // Animation properties
     public bool Flicker { get; set; }

@@ -25,6 +25,8 @@ public class SpriteBatch : IDisposable
 
     // Reference to LightingSystem (optional)
     private LightingSystem? _lightingSystem;
+    private RenderLayerManager? _layerManager;
+    private string _currentLayer = LightingSystem.DefaultLayer;
 
     // Tone control
     private Vector3 _tone = Vector3.One;
@@ -54,6 +56,11 @@ public class SpriteBatch : IDisposable
     public void SetLightingSystem(LightingSystem lightingSystem)
     {
         _lightingSystem = lightingSystem;
+    }
+
+    public void SetLayerManager(RenderLayerManager layerManager)
+    {
+        _layerManager = layerManager;
     }
 
     public void SetTone(Vector3 tone) => _tone = tone;
@@ -338,14 +345,29 @@ public class SpriteBatch : IDisposable
     }
 
     public void Begin(Matrix4x4? transform = null, bool useLighting = false)
+        => Begin(transform, useLighting, LightingSystem.DefaultLayer);
+
+    public void Begin(Matrix4x4? transform, bool useLighting, string layerName)
     {
+        if (string.IsNullOrWhiteSpace(layerName))
+            layerName = LightingSystem.DefaultLayer;
+
         _begun = true;
         _spriteCount = 0;
         _textureSlots.Clear();
         _currentTextureSlot = 0;
         _transform = transform ?? Matrix4x4.Identity;
-        _useLighting = useLighting;
-        _currentShader = useLighting ? _lightingShader : _defaultShader;
+        _currentLayer = layerName;
+
+        bool layerLightingEnabled = true;
+        if (_layerManager != null && _layerManager.TryGetLayer(layerName, out var layer))
+            layerLightingEnabled = layer.LightingEnabled;
+
+        _useLighting = useLighting && layerLightingEnabled;
+        _currentShader = _useLighting ? _lightingShader : _defaultShader;
+
+        if (_lightingSystem != null)
+            _lightingSystem.EnsureLayer(layerName);
     }
 
     // Added optional normalTexture parameter. Pass 0 for none / omit parameter.
@@ -461,7 +483,7 @@ public class SpriteBatch : IDisposable
                 _gl.Uniform1(locExp, _exposure);
 
             // let lighting system upload lights + specular params
-            _lightingSystem?.ApplyLights(_currentShader);
+            _lightingSystem?.ApplyLights(_currentShader, _currentLayer);
         }
 
         // bind textures (both diffuse and normal maps are stored in same _textureSlots dictionary)
