@@ -7,7 +7,6 @@ namespace KitsuneEngine.Assets;
 
 // Add alias to resolve Texture conflict
 using Texture = KitsuneEngine.Graphics.Texture;
-using GLTexture = Silk.NET.OpenGL.Texture;
 
 public class AssetManager : IDisposable
 {
@@ -90,12 +89,10 @@ public class AssetManager : IDisposable
         var task = Task.Run(async () =>
         {
             var data = await LoadBytesAsync(path);
-            var texture = LoadTextureFromBytes(data);
 
-            if (UseCache)
-                _cache[path] = texture;
-
-            return (object)texture;
+            // OpenGL texture creation must happen on the thread that owns the GL context.
+            // Keep async work here limited to file/archive I/O.
+            return (object)data;
         });
 
         _loading[path] = task;
@@ -103,7 +100,13 @@ public class AssetManager : IDisposable
         try
         {
             var result = await task;
-            return (Texture)result;
+            var data = (byte[])result;
+            var texture = LoadTextureFromBytes(data);
+
+            if (UseCache)
+                _cache[path] = texture;
+
+            return texture;
         }
         finally
         {
