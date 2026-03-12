@@ -4,14 +4,28 @@ namespace KitsuneEngine.UI;
 
 public class UISystem
 {
+    public DialogueManager? Dialogue { get; private set; }
+
     public Panel Root { get; } = new Panel
     {
         Name = "Root",
         Layout = PanelLayout.Free
     };
 
+    public void EnableDialogue(DialogueSettings? settings = null)
+    {
+        Dialogue = new DialogueManager(settings);
+    }
+
+    public void DisableDialogue()
+    {
+        Dialogue?.Stop();
+        Dialogue = null;
+    }
+
     public void Update(float deltaTime)
     {
+        Dialogue?.Update(deltaTime);
         Root.Update(deltaTime);
     }
 
