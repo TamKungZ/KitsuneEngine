@@ -24,6 +24,7 @@ public abstract class Game : IDisposable
 
     public ServiceContainer Services { get; private set; }
     public SceneManager SceneManager { get; private set; } = null!;
+    public EngineLogger Logger { get; private set; }
 
     public Game(int width = 1280, int height = 720, string title = "KitsuneEngine Game")
     {
@@ -31,6 +32,8 @@ public abstract class Game : IDisposable
         Height = height;
         Title = title;
         Services = new ServiceContainer();
+        Logger = new EngineLogger();
+        Services.Register(Logger);
     }
 
     public void Run()
@@ -100,6 +103,8 @@ public abstract class Game : IDisposable
 
     private void OnWindowLoad()
     {
+        Logger.Info($"Window load started: {Title} ({Width}x{Height})", "Core.Game");
+
         _gl = _window.CreateOpenGL();
         _input = _window.CreateInput();
 
@@ -112,11 +117,17 @@ public abstract class Game : IDisposable
         Services.Register(new KitsuneEngine.Input.InputManager(_input));
         Services.Register(new Time());
 
+        var diagnostics = DeviceDiagnostics.Collect(_window, _gl, _input);
+        Services.Register(diagnostics);
+        LogDiagnostics(diagnostics);
+
         SceneManager = new SceneManager(Services);
         Services.Register(SceneManager);
 
+        Logger.Info("Initialization callbacks started", "Core.Game");
         Initialize();
         LoadContent();
+        Logger.Info("LoadContent completed", "Core.Game");
     }
 
     private void OnWindowUpdate(double deltaTime)
@@ -152,8 +163,25 @@ public abstract class Game : IDisposable
 
     private void OnWindowClose()
     {
+        Logger.Info("Window closing, unloading content", "Core.Game");
         UnloadContent();
         Services.Dispose();
+        Logger.Info("Services disposed", "Core.Game");
+    }
+
+    private void LogDiagnostics(DeviceDiagnostics diagnostics)
+    {
+        Logger.Info($"Runtime: {diagnostics.FrameworkDescription}", "Diagnostics");
+        Logger.Info($"OS: {diagnostics.OsDescription} [{diagnostics.OsArchitecture}] Process={diagnostics.ProcessArchitecture}", "Diagnostics");
+        Logger.Info($"Window: {diagnostics.WindowWidth}x{diagnostics.WindowHeight} Backend={diagnostics.WindowBackend}", "Diagnostics");
+        Logger.Info($"GPU: {diagnostics.GpuVendor} | {diagnostics.GpuRenderer}", "Diagnostics");
+        Logger.Info($"OpenGL: {diagnostics.OpenGlVersion}", "Diagnostics");
+        Logger.Info($"Input devices: Keyboards={diagnostics.KeyboardCount}, Mice={diagnostics.MouseCount}, Gamepads={diagnostics.GamepadCount}", "Diagnostics");
+
+        if (diagnostics.OpenAlAvailable)
+            Logger.Info("Audio device: OpenAL runtime available", "Diagnostics");
+        else
+            Logger.Warning("Audio device: OpenAL runtime not found", "Diagnostics");
     }
 
     protected virtual void Initialize() { }
