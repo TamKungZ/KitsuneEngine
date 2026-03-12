@@ -38,6 +38,16 @@ public unsafe class AudioSystem : IDisposable
         return clip;
     }
 
+    public void RegisterClip(string name, AudioClip clip)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Clip name cannot be null or empty.", nameof(name));
+        if (clip == null)
+            throw new ArgumentNullException(nameof(clip));
+
+        _clips[name] = clip;
+    }
+
     public AudioSource CreateSource()
     {
         var source = new AudioSource(_al);
@@ -169,7 +179,23 @@ public unsafe class AudioClip : IDisposable
     public AudioClip(AL al, string path)
     {
         _al = al;
-        LoadWav(path);
+        LoadAudioFile(path);
+    }
+
+    private void LoadAudioFile(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        switch (ext)
+        {
+            case ".wav":
+                LoadWav(path);
+                break;
+            case ".ogg":
+                LoadOgg(path);
+                break;
+            default:
+                throw new NotSupportedException($"Unsupported audio format: {ext}. Supported formats: .wav, .ogg");
+        }
     }
 
     private void LoadWav(string path)
@@ -223,6 +249,44 @@ public unsafe class AudioClip : IDisposable
         fixed (byte* ptr = data)
         {
             _al.BufferData(Buffer, bufferFormat, ptr, dataSize, sampleRate);
+        }
+    }
+
+    private void LoadOgg(string path)
+    {
+        using var reader = new NVorbis.VorbisReader(path);
+
+        int channels = reader.Channels;
+        int sampleRate = reader.SampleRate;
+
+        var samples = new List<float>();
+        var readBuffer = new float[4096];
+        int read;
+
+        while ((read = reader.ReadSamples(readBuffer, 0, readBuffer.Length)) > 0)
+        {
+            for (int i = 0; i < read; i++)
+                samples.Add(readBuffer[i]);
+        }
+
+        short[] pcm = new short[samples.Count];
+        for (int i = 0; i < samples.Count; i++)
+        {
+            float s = Math.Clamp(samples[i], -1f, 1f);
+            pcm[i] = (short)(s * short.MaxValue);
+        }
+
+        BufferFormat format = channels switch
+        {
+            1 => BufferFormat.Mono16,
+            2 => BufferFormat.Stereo16,
+            _ => throw new Exception($"Unsupported OGG channel count: {channels}")
+        };
+
+        Buffer = _al.GenBuffer();
+        fixed (short* ptr = pcm)
+        {
+            _al.BufferData(Buffer, format, ptr, pcm.Length * sizeof(short), sampleRate);
         }
     }
 

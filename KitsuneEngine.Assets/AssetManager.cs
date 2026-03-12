@@ -129,8 +129,12 @@ public class AssetManager : IDisposable
 
         var data = LoadBytes(path);
 
-        // Write to temp file (OpenAL needs file path)
-        var tempPath = Path.GetTempFileName();
+        // Write to temp file (OpenAL loader uses file extension for format detection)
+        var ext = Path.GetExtension(path);
+        if (string.IsNullOrWhiteSpace(ext))
+            ext = ".wav";
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"kitsune_{Guid.NewGuid():N}{ext}");
         File.WriteAllBytes(tempPath, data);
 
         var al = Silk.NET.OpenAL.AL.GetApi(true);

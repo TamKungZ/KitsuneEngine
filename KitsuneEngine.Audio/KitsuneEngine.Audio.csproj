@@ -17,5 +17,6 @@
 	
 	<ItemGroup>
 		<PackageReference Include="Silk.NET.OpenAL" Version="2.*" />
+		<PackageReference Include="NVorbis" Version="0.*" />
 	</ItemGroup>
 </Project>
