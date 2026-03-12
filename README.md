@@ -6,6 +6,15 @@
 
 A modern, lightweight 2D game engine built with .NET 8, featuring high-performance rendering, networking support, and a custom asset pipeline. Designed for simplicity and moddability.
 
+## Development Philosophy
+
+Kitsune Engine is built to give developers freedom:
+- You can use all built-in systems as-is.
+- You can use only some parts (for example, only rendering or only input).
+- You can replace any helper system with your own implementation.
+
+This means optional helpers such as scene/map flow, hitbox, and tile-map tooling are provided for convenience, not as mandatory architecture.
+
 ## Features
 
 ### Core Engine
