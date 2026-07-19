@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://tamkungz.github.io/image/kitsune-logo-v1.png" width="20%">
+  <img src="https://dev.tamkungz.me/assets-image/kitsune-banner.png" width="20%">
 </p>
 
 # Kitsune 2D Game Engine
